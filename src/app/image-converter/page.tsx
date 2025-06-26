@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef } from 'react';
 import FileUploadArea from '../../components/FileUploadArea';
 import SettingsPanel from '../../components/SettingsPanel';
