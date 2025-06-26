@@ -1,3 +1,4 @@
+'use client';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
 export interface ConvertVideoOptions {
