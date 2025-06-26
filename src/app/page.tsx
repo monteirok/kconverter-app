@@ -15,12 +15,12 @@ export default function Home() {
           >
             Image Converter
           </Link>
-          <Link
+          {/* <Link
             href="/video-converter"
             className="flex-1 px-6 py-4 bg-green-600 text-white rounded-lg text-center text-lg font-semibold shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 transition"
           >
             Video Converter & Editor
-          </Link>
+          </Link> */}
         </div>
         <div className="mt-8 text-sm text-gray-500 dark:text-gray-400 text-center">
           <p>All processing is done in your browser for maximum privacy.</p>
