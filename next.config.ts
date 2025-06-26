@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: false,
-  },
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,

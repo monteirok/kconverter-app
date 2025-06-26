@@ -1,11 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import FileUploadArea from '../../components/FileUploadArea';
-import SettingsPanel from '../../components/SettingsPanel';
-import PreviewComponent from '../../components/PreviewComponent';
-import ConversionProgress from '../../components/ConversionProgress';
-import DownloadButton from '../../components/DownloadButton';
+import React, { useRef, useState } from 'react';
 import { convertImage } from '../../utils/imageUtils';
 
 const SUPPORTED_FORMATS = [
@@ -27,11 +22,10 @@ const ImageConverterPage = () => {
   const [convertedFiles, setConvertedFiles] = useState<Blob[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isConverting, setIsConverting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = (fileList: FileList) => {
     const fileArr = Array.from(fileList);
-    // Validate file types and size (max 20MB)
     for (const file of fileArr) {
       if (!file.type.startsWith('image/')) {
         setError('One or more files are not valid images.');
@@ -47,6 +41,13 @@ const ImageConverterPage = () => {
     setProgress(new Array(fileArr.length).fill(0));
     setConvertedFiles([]);
     setError(null);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelected(e.dataTransfer.files);
+    }
   };
 
   const handleRemoveFile = (idx: number) => {
@@ -74,7 +75,7 @@ const ImageConverterPage = () => {
         });
         setProgress(prev => prev.map((p, idx) => (idx === i ? 100 : p)));
         results.push(converted);
-      } catch (e) {
+      } catch {
         setError(`Conversion failed for file: ${files[i].name}`);
         setProgress(prev => prev.map((p, idx) => (idx === i ? 0 : p)));
         results.push(files[i]);
@@ -98,26 +99,69 @@ const ImageConverterPage = () => {
   };
 
   return (
-    <main className="max-w-2xl mx-auto py-8 px-4">
+    <main className="max-w-2xl mx-auto py-8 px-4" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       <h1 className="text-2xl font-bold mb-4">Image Converter</h1>
-      <FileUploadArea
-        accept="image/*"
-        multiple
-        onFilesSelected={handleFilesSelected}
-        label="Upload images to convert"
-      />
+      <div
+        className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+        tabIndex={0}
+        role="button"
+        aria-label="Upload images to convert"
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onDrop={handleDrop}
+        onDragOver={e => e.preventDefault()}
+        style={{ background: 'var(--background)', color: 'var(--foreground)' }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={e => e.target.files && handleFilesSelected(e.target.files)}
+          tabIndex={-1}
+        />
+        <span className="text-gray-600 text-center">
+          Drag and drop images here, or click to select
+        </span>
+      </div>
+      {/* Only show settings and convert button if files are selected */}
       {files.length > 0 && (
         <>
-          <SettingsPanel
-            formatOptions={SUPPORTED_FORMATS}
-            selectedFormat={selectedFormat}
-            onFormatChange={setSelectedFormat}
-            quality={quality}
-            onQualityChange={setQuality}
-            qualityLabel="Quality (for lossy formats)"
-            minQuality={1}
-            maxQuality={100}
-          />
+          <div className="p-4 rounded-lg shadow mb-4" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
+            <div className="mb-4">
+              <label htmlFor="format-select" className="block text-sm font-medium mb-1">Format</label>
+              <select
+                id="format-select"
+                value={selectedFormat}
+                onChange={e => setSelectedFormat(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                style={{ background: 'var(--background)', color: 'var(--foreground)' }}
+              >
+                {SUPPORTED_FORMATS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label htmlFor="quality-slider" className="block text-sm font-medium mb-1">Quality (for lossy formats)</label>
+              <input
+                id="quality-slider"
+                type="range"
+                min={1}
+                max={100}
+                value={quality}
+                onChange={e => setQuality(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="text-xs mt-1">{quality}</div>
+            </div>
+          </div>
           <button
             className="mb-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50 flex items-center gap-2"
             onClick={handleConvert}
@@ -135,32 +179,68 @@ const ImageConverterPage = () => {
               Download All
             </button>
           )}
-          {error && <div className="text-red-700 bg-red-100 border border-red-400 rounded px-3 py-2 mb-2 flex items-center gap-2" role="alert"><span aria-hidden="true">❗</span>{error}</div>}
-          <div className="space-y-6">
-            {files.map((file, idx) => (
-              <div key={file.name} className="border rounded p-4 flex flex-col md:flex-row items-center gap-4">
-                <PreviewComponent fileUrl={previews[idx]} fileType={file.type} />
-                <div className="flex-1 w-full">
-                  <div className="text-sm font-medium mb-2 flex items-center justify-between">
-                    <span>{file.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">{(file.size/1024/1024).toFixed(2)} MB • {file.type}</span>
-                    <button
-                      className="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded hover:bg-red-300 focus:outline-none focus:ring-2 focus:ring-red-400"
-                      onClick={() => handleRemoveFile(idx)}
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <ConversionProgress progress={progress[idx] || 0} label="Progress" />
-                  {convertedFiles[idx] && (
-                    <DownloadButton onClick={() => handleDownload(idx)} />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
         </>
+      )}
+      {error && <div className="text-red-700 bg-red-100 border border-red-400 rounded px-3 py-2 mb-2 flex items-center gap-2" role="alert"><span aria-hidden="true">❗</span>{error}</div>}
+      {files.length === 0 && (
+        <div className="flex flex-col items-center mt-8" style={{ color: 'var(--foreground)' }}>
+          <svg width="80" height="80" fill="none" viewBox="0 0 80 80" aria-hidden="true">
+            <rect x="10" y="20" width="60" height="40" rx="8" fill="#e5e7eb" />
+            <circle cx="30" cy="40" r="8" fill="#cbd5e1" />
+            <rect x="44" y="32" width="18" height="12" rx="3" fill="#cbd5e1" />
+          </svg>
+          <div className="mt-4 text-lg font-medium">No images selected</div>
+          <div className="text-sm">Upload or drag images to get started!</div>
+        </div>
+      )}
+      {files.length > 0 && (
+        <div className="space-y-6">
+          {files.map((file, idx) => (
+            <div key={file.name} className="border rounded p-4 flex flex-col md:flex-row items-center gap-4" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
+              <img
+                src={previews[idx]}
+                alt="Preview"
+                className="max-w-full max-h-64 rounded shadow mb-2"
+              />
+              <div className="flex-1 w-full">
+                <div className="text-sm font-medium mb-2 flex items-center justify-between">
+                  <span>{file.name}</span>
+                  <span className="text-xs ml-2">{(file.size/1024/1024).toFixed(2)} MB • {file.type}</span>
+                  <button
+                    className="ml-2 px-2 py-1 text-xs bg-red-200 text-red-800 rounded hover:bg-red-300 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    onClick={() => handleRemoveFile(idx)}
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className="w-full my-2">
+                  <div className="mb-1 text-sm">Progress</div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-blue-500 h-3 rounded-full transition-all duration-200"
+                      style={{ width: `${progress[idx] || 0}%` }}
+                      aria-valuenow={progress[idx] || 0}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      role="progressbar"
+                    />
+                  </div>
+                  <span className="sr-only">{progress[idx] || 0}% complete</span>
+                </div>
+                {convertedFiles[idx] && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(idx)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                  >
+                    Download
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </main>
   );
